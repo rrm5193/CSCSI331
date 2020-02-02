@@ -1,4 +1,6 @@
 from collections import defaultdict
+from collections import deque
+import sys
 
 
 def create_graph(words):
@@ -42,11 +44,56 @@ def create_graph(words):
 
 
 def traverse(start,end,graph):
-    print()
+    visited = set()
+    queue = deque([[start]])
+    while queue:
+        curr = queue.popleft()
+        vertex = curr[-1]
+        for branch in graph[vertex] - visited:
+            if len(branch) != len(end):
+                continue
+            if branch == end:
+                # print(" -> ".join(curr + [branch]))
+                yield curr + [branch]
+            else:
+                visited.add(branch)
+                queue.append(curr + [branch])
 
 
 def main():
-    create_graph("./test.txt")
+    graph = create_graph("./words.txt")
+    shortest = sys.maxsize
+    chain = list()
+    for chains in traverse("foil","pole",graph):
+        if len(chains) < shortest:
+            shortest = len(chains)
+            chain = chains
+    print(shortest)
+    print(" -> ".join(chain))
+
+    shortest = sys.maxsize
+    for chains in traverse("cold","warm",graph):
+        if len(chains) < shortest:
+            shortest = len(chains)
+            chain = chains
+    print(shortest)
+    print(" -> ".join(chain))
+
+    shortest = sys.maxsize
+    for chains in traverse("small","short",graph):
+        if len(chains) < shortest:
+            shortest = len(chains)
+            chain = chains
+    print(shortest)
+    print(" -> ".join(chain))
+
+    shortest = sys.maxsize
+    for chains in traverse("pushed","harder",graph):
+        if len(chains) < shortest:
+            shortest = len(chains)
+            chain = chains
+    print(shortest)
+    print(" -> ".join(chain))
 
 
 if __name__ == "__main__":
