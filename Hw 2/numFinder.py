@@ -12,12 +12,16 @@ def create_num_list(file_path):
     return nums
 
 
+# a function to swap two values at the given indices of numbers
 def swap(n1, n2, numbers):
+    while n1 == n2:
+        n2 = random.randint(0, 99)
     temp = numbers[n1]
     numbers[n1] = numbers[n2]
     numbers[n2] = temp
 
 
+# a function to randomly change the operation at the given index
 def change(i, operators):
     temp = operators[i]
     new = random.randint(0, 4)
@@ -26,6 +30,7 @@ def change(i, operators):
     operators[i] = new
 
 
+# function to perform the operation specified, avoiding division by 0
 def perform_op(op, nums, i, curr):
     if op == 0:
         return curr + nums[i]
@@ -90,7 +95,6 @@ def restart_hill_climb(target, values):
             print(best)
             print(best_operations)
             print(best_numbers)
-            print('\n')
         else:
 
             # set the current list equal to the best
@@ -106,7 +110,12 @@ def restart_hill_climb(target, values):
 
 
 def main():
+
     nums = create_num_list("./nums.txt")
+    restart_hill_climb(6937, nums)
+    print("done")
+
+    nums = create_num_list("./nums2.txt")
     restart_hill_climb(6937, nums)
     print("done")
 
