@@ -58,6 +58,7 @@ def perform_op(op, nums, i, curr):
         return curr / nums[i]
 
 
+# function to check which sum is closer to the target value
 def check_value(target, sum1, sum2):
     # since the target value is a 4 digit number, we ignore any new sum greater than 9999
     if sum2 > 9999:
@@ -69,7 +70,13 @@ def check_value(target, sum1, sum2):
         return sum2
 
 
-def restart_hill_climb(target, values, timeout):
+# function to perform random restart hill climbing under a given time frame
+def restart_hill_climb(target, input_nums, timeout):
+
+    # random state of the input numbers shuffled
+    values = input_nums.copy()
+    random.shuffle(values)
+
     # start time to keep track of time out
     start_time = time()
 
@@ -87,34 +94,71 @@ def restart_hill_climb(target, values, timeout):
 
     # main algorithm loop to run before timeout
     while (time() - start_time) < timeout:
-        # check the current value produced by the algorithm
-        curr = values[0]
-        for i in range(1, 100):
-            curr = perform_op(operations[i-1], values, i, curr)
 
-        # check if the current total beats the best total recorded
+        # temporary list for numbers and ops
+        temp_nums = values.copy()
+        temp_ops = operations.copy()
+
+        # find the best option from swapping values
+        best_swap = sys.maxsize
+        for i in range(len(values)):
+            for ii in range(len(values)):
+                swap(i, ii, temp_nums)
+
+                # check the current value produced by the swapping
+                curr = temp_nums[0]
+                for iii in range(1, len(values)-1):
+                    curr = perform_op(operations[iii - 1], temp_nums, iii, curr)
+
+                # record the best swap value and list
+                temp = best_swap
+                best_swap = check_value(target, best_swap, curr)
+                if temp != best_swap:
+                    best_numbers = temp_nums.copy()
+
+                # reset temp_nums
+                temp_nums = values.copy()
+
+        # find the best option for changing operations
+        best_change = sys.maxsize
+        for i in range(len(operations)):
+            change(i, temp_ops)
+
+            # check the current value produced by the swapping
+            curr = temp_ops[0]
+            for ii in range(1, len(values) - 1):
+                curr = perform_op(temp_ops[ii - 1], values, ii, curr)
+
+            temp = best_change
+            best_change = check_value(target, best_change, curr)
+            if temp != best_change:
+                best_operations = temp_ops.copy()
+
+            # reset temp_ops
+            temp_ops = operations.copy()
+
+        # record the best move this iteration
+        move = check_value(target, best_change, best_swap)
+
+        # store the previous best
         temp = best
-        best = check_value(target, best, curr)
-        if temp != best:
+        best = check_value(target, best, move)
 
-            # set the best operation and number list equal to the current
-            best_operations = operations.copy()
-            best_numbers = values.copy()
-            print(best)
-            print(best_operations)
-            print(best_numbers)
-        else:
-
-            # set the current list equal to the best
+        # update the operations and values list
+        if best == best_change:
             operations = best_operations.copy()
+        elif best == best_swap:
             values = best_numbers.copy()
-
-        # determine the next step to takes
-        transition = random.randint(0, 2)
-        if transition:
-            swap(random.randint(0, 99), random.randint(0, 99), values)
+        # if there is no new best, reset the best_numbers and best_operations list
         else:
-            change(random.randint(0, 98), operations)
+            best_numbers = values.copy()
+            best_operations = operations.copy()
+
+        # if there is a new best value, print the new
+        if best != temp:
+            print(best)
+            print(operations)
+            print(values)
 
 
 def main():
