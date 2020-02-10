@@ -3,8 +3,16 @@ import random
 import sys
 
 
+# function to create a list of numbers randomly
+def create_nums_rand():
+    nums = list()
+    for i in range(0, 100):
+        nums.append(float(random.randint(0, 9)))
+    return nums
+
+
 # function to create a list of numbers from a given file
-def create_num_list(file_path):
+def create_nums_file(file_path):
     nums = list()
     file = open(file_path, 'r')
     for line in file:
@@ -61,7 +69,7 @@ def check_value(target, sum1, sum2):
         return sum2
 
 
-def restart_hill_climb(target, values):
+def restart_hill_climb(target, values, timeout):
     # start time to keep track of time out
     start_time = time()
 
@@ -78,7 +86,7 @@ def restart_hill_climb(target, values):
         operations.append(op)
 
     # main algorithm loop to run before timeout
-    while (time() - start_time) < 100:
+    while (time() - start_time) < timeout:
         # check the current value produced by the algorithm
         curr = values[0]
         for i in range(1, 100):
@@ -111,13 +119,39 @@ def restart_hill_climb(target, values):
 
 def main():
 
-    nums = create_num_list("./nums.txt")
-    restart_hill_climb(6937, nums)
-    print("done")
+    nums = create_nums_file("./nums.txt")
+    restart_hill_climb(6937, nums, 10)
+    print("done\n")
 
-    nums = create_num_list("./nums2.txt")
-    restart_hill_climb(6937, nums)
-    print("done")
+    restart_hill_climb(6937, nums, 50)
+    print("done\n")
+
+    restart_hill_climb(6937, nums, 100)
+    print("done\n")
+
+    # alternate file to test with
+    #
+    # nums = create_nums_file("./nums2.txt")
+    # restart_hill_climb(6937, nums, 10)
+    # print("done")
+    #
+    # restart_hill_climb(6937, nums, 100)
+    # print("done")
+    #
+    # restart_hill_climb(6937, nums, 1000)
+    # print("done")
+    #
+    # Testing with random values
+    #
+    # nums = create_nums_rand()
+    # restart_hill_climb(6937, nums, 10)
+    # print("done")
+    #
+    # restart_hill_climb(6937, nums, 100)
+    # print("done")
+    #
+    # restart_hill_climb(6937, nums, 1000)
+    # print("done")
 
 
 if __name__ == "__main__":
