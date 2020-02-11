@@ -73,92 +73,124 @@ def check_value(target, sum1, sum2):
 # function to perform random restart hill climbing under a given time frame
 def restart_hill_climb(target, input_nums, timeout):
 
-    # random state of the input numbers shuffled
-    values = input_nums.copy()
-    random.shuffle(values)
-
     # start time to keep track of time out
     start_time = time()
 
-    best = sys.maxsize
-    best_operations = list()
-    best_numbers = list()
+    # stores the best data from all attempts of hill climbing
+    overall_best = sys.maxsize
+    overall_op = list()
+    overall_num = list()
+    best_start_num = list()
+    best_start_op = list()
 
-    # list of operations in order to use
-    operations = list()
-
-    # populate the operations list with random operations
-    for i in range(0, 99):
-        op = random.randint(0, 3)
-        operations.append(op)
-
-    # main algorithm loop to run before timeout
+    # out loop to check for timeout
     while (time() - start_time) < timeout:
 
-        # temporary list for numbers and ops
-        temp_nums = values.copy()
-        temp_ops = operations.copy()
+        # best values recorded in a climb
+        best = sys.maxsize
+        best_operations = list()
+        best_numbers = list()
 
-        # find the best option from swapping values
-        best_swap = sys.maxsize
-        for i in range(len(values)):
-            for ii in range(len(values)):
-                swap(i, ii, temp_nums)
+        # list of operations in order to use
+        operations = list()
 
-                # check the current value produced by the swapping
-                curr = temp_nums[0]
-                for iii in range(1, len(values)-1):
-                    curr = perform_op(operations[iii - 1], temp_nums, iii, curr)
+        # random state of the input numbers shuffled
+        values = input_nums.copy()
+        random.shuffle(values)
+        overall_val_temp = values.copy()
 
-                # record the best swap value and list
-                temp = best_swap
-                best_swap = check_value(target, best_swap, curr)
-                if temp != best_swap:
-                    best_numbers = temp_nums.copy()
+        # populate the operations list with random operations
+        for i in range(0, 99):
+            op = random.randint(0, 3)
+            operations.append(op)
+        overall_op_temp = operations.copy()
 
-                # reset temp_nums
-                temp_nums = values.copy()
+        # printing the starting state
+        print("Starting operations: ", values)
+        print("Starting numbers: ", operations)
 
-        # find the best option for changing operations
-        best_change = sys.maxsize
-        for i in range(len(operations)):
-            change(i, temp_ops)
+        # starting distance to initiate the algorithm's loop
+        previous_climb = best - 1
 
-            # check the current value produced by the swapping
-            curr = temp_ops[0]
-            for ii in range(1, len(values) - 1):
-                curr = perform_op(temp_ops[ii - 1], values, ii, curr)
+        # algorithm loop
+        while abs(target - previous_climb) < abs(target-best):
 
-            temp = best_change
-            best_change = check_value(target, best_change, curr)
-            if temp != best_change:
-                best_operations = temp_ops.copy()
+            # set the best =  to the previous
+            best = previous_climb
 
-            # reset temp_ops
+            # temporary list for numbers and ops
+            temp_nums = values.copy()
             temp_ops = operations.copy()
 
-        # record the best move this iteration
-        move = check_value(target, best_change, best_swap)
+            # find the best option from swapping values
+            best_swap = sys.maxsize
+            for i in range(len(values)):
+                for ii in range(len(values)):
+                    swap(i, ii, temp_nums)
 
-        # store the previous best
-        temp = best
-        best = check_value(target, best, move)
+                    # check the current value produced by the swapping
+                    curr = temp_nums[0]
+                    for iii in range(1, len(values)-1):
+                        curr = perform_op(operations[iii - 1], temp_nums, iii, curr)
 
-        # update the operations and values list
-        if best == best_change:
-            operations = best_operations.copy()
-        elif best == best_swap:
-            values = best_numbers.copy()
-        # if there is no new best, reset the best_numbers and best_operations list
-        else:
-            best_numbers = values.copy()
-            best_operations = operations.copy()
+                    # record the best swap value and list
+                    temp = best_swap
+                    best_swap = check_value(target, best_swap, curr)
+                    if temp != best_swap:
+                        best_numbers = temp_nums.copy()
 
-        # if there is a new best value, print the new
-        if best != temp:
-            print(best)
-            print(operations)
-            print(values)
+                    # reset temp_nums
+                    temp_nums = values.copy()
+
+            # find the best option for changing operations
+            best_change = sys.maxsize
+            for i in range(len(operations)):
+                change(i, temp_ops)
+
+                # check the current value produced by the swapping
+                curr = temp_ops[0]
+                for ii in range(1, len(values) - 1):
+                    curr = perform_op(temp_ops[ii - 1], values, ii, curr)
+
+                temp = best_change
+                best_change = check_value(target, best_change, curr)
+                if temp != best_change:
+                    best_operations = temp_ops.copy()
+
+                # reset temp_ops
+                temp_ops = operations.copy()
+
+            # record the best move this iteration
+            previous_climb = check_value(target, best_change, best_swap)
+
+            # update the operations and values list
+            if previous_climb == best_change:
+                operations = best_operations.copy()
+            elif previous_climb == best_swap:
+                values = best_numbers.copy()
+            # if there is no new best, reset the best_numbers and best_operations list
+            else:
+                best_numbers = values.copy()
+                best_operations = operations.copy()
+        if check_value(target, best, overall_best) != overall_best:
+            overall_best = best
+            overall_num = best_operations.copy()
+            overall_op = best_operations.copy()
+            best_start_num = overall_val_temp.copy()
+            best_start_op = overall_op_temp.copy()
+        # printing the current results
+        print("Best sum:", best)
+        print("Operations:", operations)
+        print("Values:", values)
+        print()
+
+    # printing the best results
+    print("Starting operations: ", best_start_op)
+    print("Starting numbers: ", best_start_num)
+    print("Best sum:", overall_best)
+    print("Final Operations:", overall_op)
+    print("Final Values:", overall_num)
+    print()
 
 
 def main():
