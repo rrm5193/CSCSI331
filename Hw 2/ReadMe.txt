@@ -1,8 +1,8 @@
 File name: "numFinder.py"
-Description: This file either takes a file with a set of 100 single digit numbers, or randomly produces the set itself
-to find an algorithmic equation that is as close as possible to the target value. It will randomly generate starting
-state and a series of operations to perform before using the random hill-climbing algorithm to go through and choose
-the best option from swapping numbers, or changing operations to find the closest total.
+Description: This file takes a file with a set of 100 single digit numbers to find an algorithmic equation that is as
+close as possible to a target value. It will randomly generate a starting state and a series of operations to perform
+before using the hill-climbing algorithm to go through and choose the best option from swapping numbers, or
+changing operations to find the closest total, repeating this every generation.
 
 For this program to run nums.txt and nums2.txt must be in the same directory as numFinder.py
 
