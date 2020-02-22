@@ -10,7 +10,7 @@ def create_graph(words):
     # to words that only differ by one letter
     graph = defaultdict(set)
     # open the file passed in and read each line to create the graph
-    wfile = open(words,'r')
+    wfile = open(words, 'r')
     for line in wfile:
         # removes the new line character at the end
         word = line[:-1]
