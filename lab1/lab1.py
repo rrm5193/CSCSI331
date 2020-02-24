@@ -3,7 +3,7 @@ from PIL import Image
 from PIL import ImageDraw
 import enum
 import sys
-import time
+import math
 
 
 class Terrain(enum.Enum):
@@ -17,7 +17,8 @@ class Terrain(enum.Enum):
     Paved_Road = (71, 51, 3, 255)
     Foot_path = (0, 0, 0, 255)
     Out_of_Bounds = (205, 0, 101, 255)
-    Ice_Mud = (217, 251, 255, 255)
+    Ice = (217, 251, 255, 255)
+    Mud = (173, 127, 0, 255)
 
 
 class Constants(enum.Enum):
@@ -33,9 +34,13 @@ class Node:
         self.g = 0
         self.h = 0
         self.f = 0
+        self.distance = 0
 
     def __eq__(self, other):
         return self.position == other.position
+
+    def __lt__(self, other):
+        return self.f < other.f
 
 
 # function to return the effect the terrain has on movement
@@ -68,13 +73,17 @@ def check_modifier(rgb_color):
     elif rgb_color == Terrain.Foot_path.value:
         return 0.9
     # you can run in this but like you're trying not to fall - 45%
-    elif rgb_color == Terrain.Ice_Mud.value:
+    elif rgb_color == Terrain.Ice.value:
+        return 0.45
+    # same as ice
+    elif rgb_color == Terrain.Mud.value:
         return 0.45
     # out of bounds - 0%
     else:
         return 0.0
 
 
+# function to store elevation in a 2d array
 def store_elevation(fp):
     wfile = open(fp, 'r')
     elevation = list()
@@ -88,86 +97,202 @@ def store_elevation(fp):
     return elevation
 
 
+# function to store the points to visit
 def store_waypoints(fp):
     wfile = open(fp, 'r')
     points = list()
     for line in wfile:
-        temp = list()
         word = line[:-1]
         values = word.split()
         x = int(values[0])
         y = int(values[1])
-        temp.append(x)
-        temp.append(y)
-        points.append(temp)
+        points.append((x,y))
     return points
 
 
-def calculate_g_cost(image, point1, point2, elevation):
+# function to add altercations to the map based on season
+def seasons(image, season, elevation, modifier):
+    if season == "summer":
+        return image
+    draw = ImageDraw.Draw(image)
+
+    visited = list()
+    for i in range(395):
+        temp = list()
+        for ii in range(500):
+            temp.append(False)
+        visited.append(temp)
+
+    reached_nodes = queue.Queue()
+
+    for x in range(395):
+        for y in range(500):
+            if visited[x][y]:
+                continue
+            rgb = image.getpixel((x, y))
+            if season == "winter":
+                if not check_modifier(rgb) == 0.3:
+                    new_node = Node(None, (x, y))
+                    new_node.distance = 0
+                    reached_nodes.put(new_node)
+                    visited[x][y] = True
+                    while not reached_nodes.empty():
+                        s = reached_nodes.get()
+                        for new_position in [(-1, 0), (0, 1), (1, 0), (0, -1)]:
+
+                            xPos = new_position[0] + s.position[0]
+                            if xPos < 0 or xPos >= 395:
+                                continue
+
+                            yPos = new_position[1] + s.position[1]
+                            if yPos < 0 or yPos >= 500:
+                                continue
+
+                            if visited[xPos][yPos]:
+                                continue
+
+                            rgb = image.getpixel((xPos, yPos))
+                            if not check_modifier(rgb) == 0.3 or rgb == Terrain.Out_of_Bounds.value:
+                                continue
+
+                            if s.distance == 7:
+                                continue
+
+                            new_node = Node(None, (xPos, yPos))
+                            new_node.distance = s.distance + 1
+                            reached_nodes.put(new_node)
+                            visited[xPos][yPos] = True
+                            draw.point(new_node.position, fill=Terrain.Ice.value)
+
+            elif season == "fall":
+                if rgb == Terrain.Easy_Forest.value:
+                    for new_position in [(-1, 0), (0, 1), (1, 0), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]:
+
+                        xPos = new_position[0] + x
+                        if xPos < 0 or xPos >= 395:
+                            continue
+
+                        yPos = new_position[1] + y
+                        if yPos < 0 or yPos >= 500:
+                            continue
+
+                        rgb = image.getpixel((xPos, yPos))
+                        if rgb == Terrain.Easy_Forest.value:
+                            continue
+
+                        modifier[xPos][yPos] = 0.5
+
+            elif season == "spring":
+                if check_modifier(rgb) == 0.3:
+                    new_node = Node(None, (x, y))
+                    new_node.distance = 0
+                    reached_nodes.put(new_node)
+                    visited[x][y] = True
+                    while not reached_nodes.empty():
+                        s = reached_nodes.get()
+                        for new_position in [(-1, 0), (0, 1), (1, 0), (0, -1)]:
+
+                            xPos = new_position[0] + s.position[0]
+                            if xPos < 0 or xPos >= 395:
+                                continue
+
+                            yPos = new_position[1] + s.position[1]
+                            if yPos < 0 or yPos >= 500:
+                                continue
+
+                            if visited[xPos][yPos]:
+                                continue
+
+                            rgb = image.getpixel((xPos, yPos))
+                            if check_modifier(rgb) == 0.3 or rgb == Terrain.Out_of_Bounds.value:
+                                continue
+
+                            if s.distance == 15:
+                                continue
+
+                            if elevation[yPos][xPos] - elevation[s.position[1]][s.position[0]] > 1:
+                                continue
+
+                            new_node = Node(None, (xPos, yPos))
+                            new_node.distance = s.distance + 1
+                            reached_nodes.put(new_node)
+                            visited[xPos][yPos] = True
+                            draw.point(new_node.position, fill=Terrain.Mud.value)
+
+    return image, modifier
+
+
+# function to calculate the g cost for heuristic
+def calculate_g_cost(image, point1, point2, elevation, modifier):
     rgb_one = image.getpixel((point1[0], point1[1]))
     rgb_two = image.getpixel((point2[0], point2[1]))
-    mod1 = check_modifier(rgb_one)
-    mod2 = check_modifier(rgb_two)
+    mod1 = check_modifier(rgb_one) * modifier[point1[0]][point1[1]]
+    mod2 = check_modifier(rgb_two) * modifier[point2[0]][point2[1]]
 
     deltaX = Constants.xScale.value ** 2
     deltaY = Constants.yScale.value ** 2
-    deltaZ = (elevation[point2[0]][point2[1]] - elevation[point1[0]][point1[1]]) ** 2
+    deltaZ = (elevation[point2[1]][point2[0]] - elevation[point1[1]][point1[0]]) ** 2
 
     if point1[0] == point2[0]:
-        temp = (deltaY + deltaZ)/2
+        temp = math.sqrt((deltaY + deltaZ)) / 2
         return (temp / mod1) + (temp / mod2)
 
     elif point1[1] == point2[1]:
-        temp = (deltaX + deltaZ) / 2
+        temp = math.sqrt((deltaX + deltaZ)) / 2
         return (temp / mod1) + (temp / mod2)
 
     else:
-        temp = (deltaX + deltaY + deltaZ)/2
+        temp = math.sqrt((deltaX + deltaY + deltaZ)) / 2
         return (temp / mod1) + (temp / mod2)
 
 
+# function to calculate the h cost for heuristic
 def calculate_h_cost(child, end):
     deltaX = (end[0] - child[0]) * Constants.xScale.value
     deltaY = (end[1] - child[1]) * Constants.yScale.value
 
-    return (deltaX ** 2) + (deltaY ** 2)
+    return math.sqrt((deltaX ** 2) + (deltaY ** 2))
 
 
-def traversal_loop(image, waypoints, elevation, fileName):
-    start_time = time.time()
+def traversal_loop(image, waypoints, elevation, fileName, season):
+
+    modifier = list()
+    for j in range(395):
+        temp = list()
+        for k in range(500):
+            temp.append(1.0)
+        modifier.append(temp)
+
     ori = Image.open(image)
+    ori, modifier = seasons(ori, season, elevation, modifier)
     im = ori.copy()
     draw = ImageDraw.Draw(im)
 
-    open_nodes = list()
-    close_nodes = list()
+    open_nodes = queue.PriorityQueue()
 
-    start = Node(None, [waypoints[0][0], waypoints[0][1]])
+    start = Node(None, (waypoints[0][0], waypoints[0][1]))
     start.f = start.g = start.h = 0
     waypoints.pop(0)
 
-    open_nodes.append(start)
+    open_nodes.put(start)
 
     for i in waypoints:
-        end = Node(None, [i[0], i[1]])
+        points = list()
+        for j in range(395):
+            temp = list()
+            for k in range(500):
+                temp.append(False)
+            points.append(temp)
 
-        print(f"start: {start.position} end: {end.position}")
+        end = Node(None, i)
 
-        while len(open_nodes) > 0 and (time.time() - start_time) < 75.0:
-            current = open_nodes[0]
-            curr_index = 0
-            for index, item in enumerate(open_nodes):
-                if item.f < current.f:
-                    current = item
-                    curr_index = index
-            open_nodes.pop(curr_index)
-            close_nodes.append(current)
+        current = start
+        while not current == end:
 
-            if current == end:
-                break
+            current = open_nodes.get()
 
             children = list()
-            for new_position in [(-1, 0), (0, 1), (1, 0), (0, -1)]:
+            for new_position in [(-1, 0), (0, 1), (1, 0), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]:
 
                 xPos = new_position[0] + current.position[0]
                 if xPos < 0 or xPos >= 395:
@@ -175,6 +300,9 @@ def traversal_loop(image, waypoints, elevation, fileName):
 
                 yPos = new_position[1] + current.position[1]
                 if yPos < 0 or yPos >= 500:
+                    continue
+
+                if points[xPos][yPos]:
                     continue
 
                 rgb = ori.getpixel((xPos, yPos))
@@ -186,50 +314,32 @@ def traversal_loop(image, waypoints, elevation, fileName):
 
             for child in children:
 
-                child.g = calculate_g_cost(ori, current.position, child.position, elevation) + current.g
+                child.g = calculate_g_cost(ori, current.position, child.position, elevation, modifier) + current.g
                 child.h = calculate_h_cost(child.position, end.position)
                 child.f = child.g + child.h
 
-                addChild = 1
+                open_nodes.put(child)
+                points[child.position[0]][child.position[1]] = True
 
-                for seen in open_nodes:
-                    if child == seen:
-                        if seen.f < child.f:
-                            addChild = 0
-                        elif seen.f > child.f:
-                            seen.f = child.f
-                            seen.g = child.g
-                            seen.parent = child.parent
-                            addChild = 0
+        start = Node(None, end.position)
+        start.f = start.g = start.h = 0
 
-                for seen in close_nodes:
-                    if child == seen:
-                        if seen.f < child.f:
-                            addChild = 0
-                if addChild:
-                    open_nodes.append(child)
+        open_nodes = queue.PriorityQueue()
+        open_nodes.put(start)
 
-        new_start = Node(None, end.position)
-        new_start.f = new_start.g = new_start.h = 0
-        open_nodes.clear()
-        open_nodes.append(new_start)
-
-        print(close_nodes)
-        current = close_nodes.pop(-1)
         while current is not None:
             draw.point(current.position, fill=(255, 0, 0, 255))
             current = current.parent
-        # close_nodes.clear()
-
     im.save(fileName)
     im.show()
 
 
 def main():
+
     elevation = store_elevation(sys.argv[2])
     waypoints = store_waypoints(sys.argv[3])
 
-    traversal_loop(sys.argv[1], waypoints, elevation, sys.argv[5])
+    traversal_loop(sys.argv[1], waypoints, elevation, sys.argv[5], sys.argv[4])
 
 
 if __name__ == "__main__":
